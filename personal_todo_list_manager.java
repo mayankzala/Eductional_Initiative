@@ -156,6 +156,7 @@ public class personal_todo_list_manager {
         System.out.println("Undoing last action...");
         toDoListManager.undo();
 
+        System.out.println("______--");
         List<Task> updatedTasks = toDoListManager.viewTasks("Show all");
         for (Task task : updatedTasks) {
             System.out.println(task.getDescription() +
