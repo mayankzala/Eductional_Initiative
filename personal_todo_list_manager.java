@@ -1,167 +1,249 @@
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Stack;
+import java.time.LocalDate;
+import java.util.ArrayList;
+// Task class- description of task , due date of task, completed status
 
-// Task class with Builder pattern for construction
 class Task {
-    private String description;
-    private boolean completed;
-    private Date dueDate;
+    // Not accessible to user(view only)
+    private String task_description;
+    private LocalDate dueDate;
+    private boolean is_completed;
 
-    private Task(Builder builder) {
-        this.description = builder.description;
-        this.completed = false; // Tasks are initially not completed
-        this.dueDate = builder.dueDate;
+    // constructer to set the parameters of Task
+    Task(String description, LocalDate date) {
+        this.task_description = description;
+        this.dueDate = date;
+        this.is_completed = false; // initialy task is incompleted;
     }
 
-    // Getter methods
-
-    public String getDescription() {
-        return description;
+    // methods to get the task data
+    public String get_Task_Description() {
+        return task_description;
     }
 
-    public boolean isCompleted() {
-        return completed;
-    }
-
-    public Date getDueDate() {
+    public LocalDate get_dueDate() {
         return dueDate;
     }
 
-    // Builder class
-    public static class Builder {
-        private String description;
-        private Date dueDate;
-
-        public Builder(String description) {
-            this.description = description;
-        }
-
-        public Builder dueDate(String dueDate) {
-            try {
-                this.dueDate = new SimpleDateFormat("yyyy-MM-dd").parse(dueDate);
-            } catch (ParseException e) {
-                e.printStackTrace(); // Handle parsing exception
-            }
-            return this;
-        }
-
-        public Task build() {
-            return new Task(this);
-        }
+    public boolean is_completed() {
+        return is_completed;
     }
 
-    // Other methods for marking completion, etc.
-    public void markCompleted() {
-        this.completed = true;
+    // method to make task's status completed
+    public void setCompleted() {
+        this.is_completed = true;
     }
 
-    public void markPending() {
-        this.completed = false;
+    // update the description and date;
+    public void update_Description(String update_desc) {
+        this.task_description = update_desc;
     }
+
+    public void update_dueDate(LocalDate d) {
+        this.dueDate = d;
+    }
+
 }
 
-// Caretaker class for Memento pattern
-class TaskHistory {
-    private Stack<List<Task>> history = new Stack<>();
+// Memento Design pattern to save history
+class undo_redo {
+    private Stack<List<Task>> undo_stack = new Stack<>();
+    private Stack<List<Task>> redo_stack = new Stack<>();
 
-    public void saveState(List<Task> tasks) {
-        history.push(new ArrayList<>(tasks));
+    public void save_Current(List<Task> tasks) {
+        undo_stack.push(tasks);
     }
 
+    // undo operation
     public List<Task> undo() {
-        if (!history.isEmpty()) {
-            return history.pop();
+        List<Task> temp = undo_stack.pop();
+        if (!undo_stack.isEmpty()) {
+            redo_stack.push(temp);
+            return undo_stack.isEmpty() ? new ArrayList<>() : undo_stack.peek();
         }
         return new ArrayList<>();
     }
-}
 
-// To-Do List Manager class
-class ToDoListManager {
-    private List<Task> tasks = new ArrayList<>();
-    private TaskHistory taskHistory = new TaskHistory();
-
-    public void addTask(Task task) {
-        tasks.add(task);
-        taskHistory.saveState(tasks);
+    // redo operation
+    public List<Task> redo() {
+        List<Task> temp = redo_stack.pop();
+        if (!redo_stack.isEmpty()) {
+            undo_stack.push(temp);
+            return undo_stack.isEmpty() ? new ArrayList<>() : undo_stack.peek();
+        }
+        return undo_stack.peek();
     }
 
-    public void markCompleted(String description) {
-        for (Task task : tasks) {
-            if (task.getDescription().equals(description)) {
-                task.markCompleted();
-                taskHistory.saveState(tasks);
+}
+
+class todoList_Manager {
+    // Arraylist used because of dynamic memory allocation for store any no. of task
+    List<Task> task_Storage = new ArrayList<>();// stores the Task object;
+
+    // object of undo_redo
+    undo_redo u_r = new undo_redo();
+
+    public void add_Task(Task t) {
+        task_Storage.add(t);
+
+        List<Task> tasksCopy = new ArrayList<>(task_Storage);
+        u_r.save_Current(tasksCopy);
+    }
+
+    // considering decription as id for identifying the task
+    public void mark_Complete(String decs) {
+        for (Task t : task_Storage) {
+            if (t.get_Task_Description().equals(decs)) {
+                t.setCompleted();
                 break;
             }
         }
+        List<Task> tasksCopy = new ArrayList<>();
+        tasksCopy.addAll(task_Storage);
+        u_r.save_Current(tasksCopy);
     }
 
-    public void deleteTask(String description) {
-        tasks.removeIf(task -> task.getDescription().equals(description));
-        taskHistory.saveState(tasks);
-    }
+    public void delete_Task(String decs) {
+        for (Task t : task_Storage) {
+            if (t.get_Task_Description().equals(decs)) {
+                task_Storage.remove(t);
 
-    public List<Task> viewTasks(String filter) {
-        List<Task> filteredTasks = new ArrayList<>();
-        switch (filter) {
-            case "Show all":
-                filteredTasks = new ArrayList<>(tasks);
                 break;
-            case "Show completed":
-                for (Task task : tasks) {
-                    if (task.isCompleted()) {
-                        filteredTasks.add(task);
-                    }
-                }
-                break;
-            case "Show pending":
-                for (Task task : tasks) {
-                    if (!task.isCompleted()) {
-                        filteredTasks.add(task);
-                    }
-                }
-                break;
+            }
         }
-        return filteredTasks;
+        List<Task> tasksCopy = new ArrayList<>();
+        tasksCopy.addAll(task_Storage);
+        u_r.save_Current(tasksCopy);
+    }
+
+    public void print_TaskList(int choice) {
+
+        System.out.println("Due LocalDate  \t  Status\tDescription");
+        System.out.println("--------------------------------------------------------");
+        for (Task t : task_Storage) {
+            if (choice == 2) {
+                if (t.is_completed()) {
+                    System.out.print(t.get_dueDate() + "        ");
+                    System.out.print("Completed    ");
+                    System.out.print(t.get_Task_Description());
+                    System.out.println();
+                } else {
+                    continue;
+                }
+            } else if (choice == 3) {
+                if (!t.is_completed()) {
+                    System.out.print(t.get_dueDate() + "        ");
+                    System.out.print("Pending      ");
+                    System.out.print(t.get_Task_Description());
+                    System.out.println();
+                } else {
+                    continue;
+                }
+            } else {
+                System.out.print(t.get_dueDate() + "        ");
+                System.out.print(t.is_completed() ? "Completed    " : "Pending      ");
+                System.out.print(t.get_Task_Description());
+                System.out.println();
+            }
+        }
+        System.out.println("\n\n");
     }
 
     public void undo() {
-        tasks = taskHistory.undo();
+
+        List<Task> undoTasks = u_r.undo();
+        // this.task_Storage=u_r.undo();
+
+        if (undoTasks != null) {
+            this.task_Storage = undoTasks;
+        }
     }
+
+    public void redo() {
+        List<Task> redoTasks = u_r.redo();
+        if (redoTasks != null) {
+            this.task_Storage = redoTasks;
+        }
+    }
+
 }
 
 public class personal_todo_list_manager {
     public static void main(String[] args) {
-        ToDoListManager toDoListManager = new ToDoListManager();
 
-        Task task1 = new Task.Builder("Buy groceries").dueDate("2023-09-20").build();
-        Task task2 = new Task.Builder("Complete Java exercise").build();
+        todoList_Manager manager = new todoList_Manager();
+        Scanner sc = new Scanner(System.in);
+        while (true) {
+            System.out.println("Available Operation:");
+            System.out.println("press 1:Add Task");
+            System.out.println("press 2.Remove Task(Require task description)");
+            System.out.println("press 3:Mark Complete.(Required task decsription)");
+            System.out.println("press 4:Display Task");// all task, completed task,// pending task
+            System.out.println("press 5:undo");
+            System.out.println("press 6:redo");
+            System.out.println("press 7:exit");
+            System.out.println("----------------");
+            System.out.print("Choose the operation:");
+            int choice = sc.nextInt();
+            switch (choice) {
+                case 1:
+                    // Scanner scanner = new Scanner(System.in);
 
-        toDoListManager.addTask(task1);
-        toDoListManager.addTask(task2);
+                    // Taking user input for task description
+                    Scanner scanner = new Scanner(System.in);
+                    System.out.print("Enter task description: ");
+                    String description = scanner.nextLine();
+                    // Taking user input for due date (assuming date format yyyy-MM-dd)
+                    System.out.print("Enter due date (eg 2023-09-09): ");
+                    String dueDateString = scanner.nextLine();
 
-        toDoListManager.markCompleted("Buy groceries");
+                    // Parsing the due date string into a LocalDate object
+                    LocalDate dueDate = LocalDate.parse(dueDateString);
+                    Task t = new Task(description, dueDate);
+                    manager.add_Task(t);
+                    System.out.println("Task Added Successfully!");
+                    break;
+                case 2:
+                    Scanner sc2 = new Scanner(System.in);
+                    System.out.print("Task Description(of one you want to remove ):");
+                    String desc2 = sc2.nextLine();
+                    System.out.println(desc2);
+                    manager.delete_Task(desc2);
+                     System.out.println("Task Deleted Successfully!");
+                    break;
+                case 3:
+                    Scanner sc3 = new Scanner(System.in);
+                    System.out.print("Task Description(of one you want to update ):");
+                    String desc3 = sc3.nextLine();
+                    System.out.println(desc3);
+                    manager.mark_Complete(desc3);
+                    System.out.println("Task marked completed Successfully!");
+                    break;
+                case 4:
+                    Scanner sc4 = new Scanner(System.in);
+                    System.out.print("Press 1: Show All\nPress 2: Show Completed\nPress 3:Show Pending\nChoose:");
+                    int show = sc4.nextInt();
+                    manager.print_TaskList(show);
+                    break;
+                case 5:
+                    manager.undo();
+                    System.out.println("Undo Successfully!");
+                    break;
+                    case 6:
+                    manager.redo();
+                    System.out.println("Redo Successfully!");
+                    break;
+                case 7:
+                    System.exit(0);
+                    break;
+                default:
+                    System.out.println("Enter valid choice");
+            }
+            System.out.println("_____________________________________________");
 
-        List<Task> allTasks = toDoListManager.viewTasks("Show all");
-        for (Task task : allTasks) {
-            System.out.println(task.getDescription() +
-                    " - " + (task.isCompleted() ? "Completed" : "Pending") +
-                    ", Due: " + (task.getDueDate() != null ? new SimpleDateFormat("yyyy-MM-dd").format(task.getDueDate()) : "Not specified"));
         }
-
-        System.out.println("Undoing last action...");
-        toDoListManager.undo();
-
-        System.out.println("______--");
-        List<Task> updatedTasks = toDoListManager.viewTasks("Show all");
-        for (Task task : updatedTasks) {
-            System.out.println(task.getDescription() +
-                    " - " + (task.isCompleted() ? "Completed" : "Pending") +
-                    ", Due: " + (task.getDueDate() != null ? new SimpleDateFormat("yyyy-MM-dd").format(task.getDueDate()) : "Not specified"));
-        }
+        
     }
 }
